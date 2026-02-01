@@ -92,32 +92,37 @@ export const updateResume = async (req, res) => {
     const { resumeId, resumeData, removeBackground } = req.body;
     const image = req.file;
 
-    let resumeDataCopy = JSON.parse(resumeData);
+    let resumeDataCopy ;
+    if(typeof resumeData === 'string'){
+      resumeDatacopy = await JSON.parse(resumeData)
+    }else{
+      resumeDataCopy = structuredClone(resumeData)
+    }
 
-    // 🔐 security
-    delete resumeDataCopy.userId;
-    delete resumeDataCopy.public;
+
+   
 
     // 🖼️ upload image if exists
-    if (image) {
-      const imageBufferData = fs.createReadStream(image.path);
+  if (image) {
 
-      const response = await imagekit.files.upload({
-        file: imageBufferData,
-        fileName: `resume-${resumeId}.png`,
-        folder: "user-resumes",
-        transformation: {
-          pre:
-            "w-300,h-300,fo-face,z-0.75" +
-            (removeBackground ? ",e-bgremove" : ""),
-        },
-      });
+    const imageBufferData = fs.createReadStream(image.path)
+  const response = await imagekit.files.upload({
+    file: imageBufferData, // ✅ FIX
+    fileName: `resume.png`,
+    folder: "user-resumes",
+    transformation: {
+      pre:
+        "w-300,h-300,fo-face,z-0.75" +
+        (removeBackground ? ",e-bgremove" : ""),
+    },
+  });
 
-      resumeDataCopy.personal_info = {
-        ...resumeDataCopy.personal_info,
-        image: response.url,
-      };
-    }
+  resumeDataCopy.personal_info = {
+    ...resumeDataCopy.personal_info,
+    image: response.url,
+  };
+}
+
 
     const resume = await Resume.findOneAndUpdate(
       { _id: resumeId, userId },

@@ -13,7 +13,7 @@ export const enhanceProfessionalSummary = async (req, res) => {
     }
 
     const response = await ai.chat.completions.create({
-      model: process.env.MODEL,
+      model: "gemini-3-flash-preview",
       messages: [
         {
           role: "system",
@@ -71,74 +71,47 @@ export const enhanceJobDescription = async (req, res) => {
 
 // controller for uploading a resume to database
 // POST : /api/ai/upload-resume
-
 export const uploadResume = async (req, res) => {
   try {
     const { resumeText, title } = req.body;
     const userId = req.userId;
 
-    if (!resumeText) {
+    if (!resumeText || !title) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const systemPrompt =
-      "You are an expert AI agent to extract data from resume.";
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    const userPrompt = `extract data from this resume: ${resumeText}
-Provide data in the following JSON format with no additional text before or after:
-
-{
-  professional_summary: "",
-  skills: [],
-  personal_info: {
-    image: "",
-    full_name: "",
-    profession: "",
-    email: "",
-    phone: "",
-    location: "",
-    linkedin: "",
-    website: ""
-  },
-  experience: [
-    {
-      company: "",
-      position: "",
-      start_date: "",
-      end_date: "",
-      description: "",
-      is_current: false
-    }
-  ],
-  projects: [
-    {
-      name: "",
-      type: "",
-      description: ""
-    }
-  ],
-  education: [
-    {
-      institution: "",
-      degree: "",
-      field: "",
-      graduation_date: "",
-      gpa: ""
-    }
-  ]
-}`;
+    const safeText = resumeText.slice(0, 8000);
 
     const response = await ai.chat.completions.create({
-      model: process.env.MODEL,
+      model: "gemini-3-flash-preview",
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        {
+          role: "system",
+          content: "Extract structured resume data and return ONLY valid JSON.",
+        },
+        {
+          role: "user",
+          content: safeText,
+        },
       ],
-      response_format: { type: "json_object" },
     });
 
-    const extractedData = response.choices[0].message.content;
-    const parsedData = JSON.parse(extractedData);
+    const raw = response.choices[0].message.content
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(raw);
+    } catch {
+      console.error("AI RAW:", raw);
+      return res.status(500).json({ message: "Invalid AI JSON" });
+    }
 
     const newResume = await Resume.create({
       userId,
@@ -146,8 +119,11 @@ Provide data in the following JSON format with no additional text before or afte
       ...parsedData,
     });
 
-    res.json({ resumeId: newResume._id });
-  } catch (error) {
-    return res.status(400).json({ message: error.message });
+    return res.json({ resumeId: newResume._id });
+  } catch (err) {
+    console.error("UPLOAD ERROR:", err);
+    return res.status(500).json({ message: err.message });
   }
 };
+
+
