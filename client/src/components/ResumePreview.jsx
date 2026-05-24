@@ -44,11 +44,11 @@ const ResumePreview = ({ data, template, accentColor, classes = "" }) => {
               overflow: hidden;
             }
             body * {
-              visibilty: hidden;
+              visibility: hidden;
             }
             #resume-preview,
             #resume-preview * {
-              visibilty: visible;
+              visibility: visible;
             }
             #resume-preview {
               position: absolute;

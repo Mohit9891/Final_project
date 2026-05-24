@@ -43,7 +43,7 @@ const ResumeSchema = new mongoose.Schema(
       {
         _id: false,
         name: String,
-        type: String,
+        type: { type: String, default: "" }, // ✅ fix: wrap 'type' to avoid Mongoose reserved keyword conflict
         description: String,
       },
     ],
@@ -59,9 +59,9 @@ const ResumeSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true, minimize:false }
+  { timestamps: true, minimize: false }
 );
 
-const Resume =  mongoose.model("Resume", ResumeSchema);
+const Resume = mongoose.model("Resume", ResumeSchema);
 
 export default Resume;

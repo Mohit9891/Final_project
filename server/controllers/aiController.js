@@ -13,7 +13,7 @@ export const enhanceProfessionalSummary = async (req, res) => {
     }
 
     const response = await ai.chat.completions.create({
-      model: "gemini-3-flash-preview",
+      model: process.env.MODEL, // ✅ fixed: was hardcoded "gemini-3-flash-preview"
       messages: [
         {
           role: "system",
@@ -72,6 +72,7 @@ export const enhanceJobDescription = async (req, res) => {
 // controller for uploading a resume to database
 // POST : /api/ai/upload-resume
 export const uploadResume = async (req, res) => {
+  console.log("🔥 NEW CODE RUNNING");
   try {
     const { resumeText, title } = req.body;
     const userId = req.userId;
@@ -80,23 +81,18 @@ export const uploadResume = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const safeText = resumeText.slice(0, 8000);
+    const safeText = resumeText.slice(0, 1500);
 
     const response = await ai.chat.completions.create({
-      model: "gemini-3-flash-preview",
+      model: process.env.MODEL,
       messages: [
         {
           role: "system",
-          content: "Extract structured resume data and return ONLY valid JSON.",
+          content: `Extract resume data and return ONLY a valid JSON object with exactly this structure:
+{"professional_summary":"string","skills":["skill1"],"personal_info":{"full_name":"","profession":"","email":"","phone":"","location":"","linkedin":"","website":"","image":""},"experience":[{"company":"","position":"","start_date":"","end_date":"","description":"","is_current":false}],"projects":[{"name":"","type":"","description":""}],"education":[{"institution":"","degree":"","field":"","graduation_date":"","gpa":""}]}
+CRITICAL: Use double quotes only. Return ONLY the JSON. No markdown, no backticks, no explanation.`,
         },
-        {
-          role: "user",
-          content: safeText,
-        },
+        { role: "user", content: safeText },
       ],
     });
 
@@ -105,25 +101,48 @@ export const uploadResume = async (req, res) => {
       .replace(/```/g, "")
       .trim();
 
+    console.log("AI RAW OUTPUT:", raw.slice(0, 300));
+
     let parsedData;
     try {
       parsedData = JSON.parse(raw);
     } catch {
-      console.error("AI RAW:", raw);
-      return res.status(500).json({ message: "Invalid AI JSON" });
+      return res.status(500).json({ message: "Invalid AI JSON response" });
     }
+
+    // force all array fields to only contain plain objects
+    const safeArray = (val) => {
+      if (!Array.isArray(val)) return [];
+      return val.filter(
+        (item) =>
+          typeof item === "object" && item !== null && !Array.isArray(item),
+      );
+    };
+
+    const projectsToSave = safeArray(parsedData.projects);
+    const experienceToSave = safeArray(parsedData.experience);
+    const educationToSave = safeArray(parsedData.education);
+
+    console.log("PROJECTS:", JSON.stringify(projectsToSave));
+    console.log("EXPERIENCE:", JSON.stringify(experienceToSave));
+    console.log("EDUCATION:", JSON.stringify(educationToSave));
 
     const newResume = await Resume.create({
       userId,
       title,
-      ...parsedData,
+      professional_summary: parsedData.professional_summary || "",
+      skills: Array.isArray(parsedData.skills)
+        ? parsedData.skills.filter((s) => typeof s === "string")
+        : [],
+      personal_info: parsedData.personal_info || {},
+      experience: safeArray(parsedData.experience),
+      projects: safeArray(parsedData.projects),
+      education: safeArray(parsedData.education),
     });
 
     return res.json({ resumeId: newResume._id });
   } catch (err) {
-    console.error("UPLOAD ERROR:", err);
+    console.error("UPLOAD ERROR:", err.message);
     return res.status(500).json({ message: err.message });
   }
 };
-
-

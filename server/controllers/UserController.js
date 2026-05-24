@@ -1,12 +1,13 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 import bcrypt from "bcrypt";
-import Resume from "../models/Resume.js";
+import Resume from "../models/Resume.js"; // ⚠️ make sure this path is correct
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
+// POST /api/users/register
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -42,9 +43,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// controller fro user login
 // POST /api/users/login
-
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -54,7 +53,8 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    const isMatch = await existingUser.comparePassword(password);
+    // ✅ FIX: use bcrypt.compare directly instead of comparePassword instance method
+    const isMatch = await bcrypt.compare(password, existingUser.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
@@ -73,39 +73,30 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// controller for getting user by id
-//GET /api/users/data
-
+// GET /api/users/data
 export const getUserById = async (req, res) => {
   try {
     const userId = req.userId;
 
-    //check if user exists
-    const user = await User.findById;
+    // ✅ FIX: was `User.findById` (missing call) — now `User.findById(userId)`
+    const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // return useer
-    user.password = undefined;
     res.status(200).json({ user });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
-// controller for getting user resume
-// GET: /api/users/resumes
-
+// GET /api/users/resumes
 export const getUserResumes = async (req, res) => {
   try {
     const userId = req.userId;
 
-    // return user resumes
-
-    const resumes = await Resume.find({userId})
-    return res.status(200).json({resumes})
-
+    const resumes = await Resume.find({ userId });
+    return res.status(200).json({ resumes });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

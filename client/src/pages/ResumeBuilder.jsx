@@ -14,7 +14,7 @@ import {
   Share2Icon,
   EyeIcon,
   EyeOffIcon,
-  DownloadIcon
+  DownloadIcon,
 } from "lucide-react";
 
 import PersonalInfoForm from "../components/PersonalInfoForm";
@@ -32,8 +32,7 @@ import toast from "react-hot-toast";
 
 const ResumeBuilder = () => {
   const { resumeId } = useParams();
-
-  const {token} = useSelector(state => state.auth)
+  const { token } = useSelector((state) => state.auth);
 
   const [resumeData, setResumeData] = useState({
     _id: "",
@@ -48,17 +47,24 @@ const ResumeBuilder = () => {
     accentColor: "#3B82F6",
     public: false,
   });
-    const loadExistingResume = async() => {
+
+  const loadExistingResume = async () => {
     try {
-      const {data} = await api.get('/api/resumes/get/' + resumeId , {headers:{Authorization :token}})
-      if(data.resume){
-        setResumeData(data.resume)
-        document.title = data.resume.title
+      const { data } = await api.get("/api/resumes/get/" + resumeId, {
+        headers: { Authorization: `Bearer ${token}`},
+      });
+      if (data.resume) {
+        setResumeData(data.resume);
+        document.title = data.resume.title;
       }
     } catch (error) {
-      console.log(error.message)
+      console.log(error.message);
     }
   };
+
+  useEffect(() => {
+    if (resumeId) loadExistingResume();
+  }, [resumeId]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [removeBackground, setRemoveBackground] = useState(false);
@@ -74,77 +80,75 @@ const ResumeBuilder = () => {
 
   const activeSection = sections[activeSectionIndex];
 
+  const changeResumeVisibility = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("resumeId", resumeId);
+      formData.append(
+        "resumeData",
+        JSON.stringify({ public: !resumeData.public }),
+      );
 
-
- 
-
-  const changeResumeVisibility= async()=>{
-   try {
-    const formData = new FormData()
-    formData.append("resumeId", resumeId)
-    formData.append("resumeData", JSON.stringify({public : !resumeData.public}))
-
-    const {data} = await api.put('/api/resumes/update', formdata, {headers :{Authorization:token}})
-    setResumeData({...resumeData, public: !resumeData.public})
-    toast.success(data.message)
-
-   } catch (error) {
-
-    console.error("Error saving resume : " , error)
-    
-   }
-  }
+      const { data } = await api.put("/api/resumes/update", formData, {
+        headers: { Authorization: token },
+      });
+      setResumeData({ ...resumeData, public: !resumeData.public });
+      toast.success(data.message);
+    } catch (error) {
+      console.error("Error saving resume:", error);
+    }
+  };
 
   const handleShare = async () => {
-  const frontendUrl = window.location.origin;
-  const resumeUrl = `${frontendUrl}/view/${resumeId}`;
+    const frontendUrl = window.location.origin;
+    const resumeUrl = `${frontendUrl}/view/${resumeId}`;
 
-  if (navigator.share) {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "My Resume",
+          text: "Check out my resume",
+          url: resumeUrl,
+        });
+      } catch (error) {
+        console.error("Share cancelled or failed", error);
+      }
+    } else {
+      navigator.clipboard.writeText(resumeUrl);
+      alert("Share not supported. Link copied to clipboard!");
+    }
+  };
+
+  const downloadResume = () => {
+    window.print();
+  };
+
+  const saveResume = async () => {
     try {
-      await navigator.share({
-        title: "My Resume",
-        text: "Check out my resume",
-        url: resumeUrl,
+      // Deep clone resumeData
+      let updatedResumeData = JSON.parse(JSON.stringify(resumeData));
+
+      if (typeof resumeData.personal_info === "object") {
+        delete updatedResumeData.personal_info.image;
+      }
+
+      const formData = new FormData();
+      formData.append("resumeId", resumeId);
+      formData.append("resumeData", JSON.stringify(updatedResumeData));
+
+      removeBackground && formData.append("removeBackground", "yes");
+      typeof resumeData.personal_info.image === "object" &&
+        formData.append("image", resumeData.personal_info.image);
+
+      const { data } = await api.put("/api/resumes/update", formData, {
+        headers: { Authorization: token },
       });
+      setResumeData(data.resume);
+      toast.success(data.message);
     } catch (error) {
-      console.error("Share cancelled or failed", error);
+      console.log(error.message);
     }
-  } else {
-    // Fallback: copy link
-    navigator.clipboard.writeText(resumeUrl);
-    alert("Share not supported. Link copied to clipboard!");
-  }
-};
-
-const downloadResume = () => {
-  window.print();
-};
-
-const saveResume = async()=>{
-  try {
-    let updatedResumeData = structureClone(resumeData)
-
-    // remove image from updatedResumedata
-
-    if(typeof resumeData.personal_info ==='object'){
-      delete updatedResumeData.personal_info.image
-    }
-    const formData = new FormData()
-    formData.append("resumeId", resumeId)
-    formData.append("resumeData" , JSON.stringify(updatedResumeData))
-    removeBackground && formData.append("removeBackground" , "yes");
-    typeof resumeData.personal_info.image === 'object' && formData.append("image", resumeData.personal_info.image)
-
-    const {data} = await api.put('/api/resumes/update', formData, {headers :{Authorization:token}})
-    setResumeData(data.resume)
-    toast.success(data.message)
-
-  } catch (error) {
-    console.log(error.message)
-
-  }
-}
-
+  };
 
   return (
     <div>
@@ -169,9 +173,7 @@ const saveResume = async()=>{
               <hr
                 className="absolute top-0 left-0 h-1 bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300"
                 style={{
-                  width: `${
-                    (activeSectionIndex * 100) / (sections.length - 1)
-                  }%`,
+                  width: `${(activeSectionIndex * 100) / (sections.length - 1)}%`,
                 }}
               />
 
@@ -282,7 +284,7 @@ const saveResume = async()=>{
                     onChange={(data) =>
                       setResumeData((prev) => ({
                         ...prev,
-                        project: data,
+                        projects: data,
                       }))
                     }
                     setResumeData={setResumeData}
@@ -300,11 +302,12 @@ const saveResume = async()=>{
                     setResumeData={setResumeData}
                   />
                 )}
-
-                {/* Other sections will go here later */}
               </div>
+
               <button
-              onClick={()=>{toast.promise(saveResume, {loading:'saving...'})}}
+                onClick={() => {
+                  toast.promise(saveResume(), { loading: "saving..." });
+                }}
                 className="bg-gradient-to-br from-green-100 to-green-200
                      ring-green-300 text-green-600 ring hover:ring-green-400
                      transition-all rounded-md px-6 py-2 mt-6 text-sm"
@@ -320,27 +323,30 @@ const saveResume = async()=>{
               <div className="absolute bottom-3 left-0 right-0 flex items-center justify-end gap-2">
                 {resumeData.public && (
                   <button
-                      onClick={handleShare}className="flex items-center p-2 px-4 gap-2 text-xs
-               bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600
-                   rounded-lg ring-blue-300 hover:ring transition-colors"
+                    onClick={handleShare}
+                    className="flex items-center p-2 px-4 gap-2 text-xs
+                     bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600
+                     rounded-lg ring-blue-300 hover:ring transition-colors"
                   >
                     <Share2Icon className="size-4" />
                   </button>
                 )}
 
-                <button onClick={changeResumeVisibility}
+                <button
+                  onClick={changeResumeVisibility}
                   className="flex items-center p-2 px-4 gap-2 text-xs
                        bg-gradient-to-br from-purple-100 to-purple-200 text-purple-600
                        ring-purple-300 rounded-lg hover:ring transition-colors"
                 >
-                  {resumeData ? (
+                  {resumeData.public ? (
                     <EyeIcon className="size-4" />
                   ) : (
                     <EyeOffIcon className="size-4" />
                   )}
                   {resumeData.public ? "Public" : "Private"}
                 </button>
-                <button onClick={downloadResume}
+                <button
+                  onClick={downloadResume}
                   className="flex items-center gap-2 px-6 py-2 text-xs
   bg-gradient-to-br from-green-100 to-green-200 text-green-600
   rounded-lg ring-green-300 hover:ring transition-colors"

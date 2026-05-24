@@ -6,6 +6,9 @@ import userRoutes from "./routes/userRoutes.js";
 import resumeRouter from "./routes/resumeRoutes.js";
 import aiRouter from "./routes/aiRoutes.js";
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
