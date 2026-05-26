@@ -1,12 +1,17 @@
 import React from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import {Link, useNavigate } from "react-router-dom"
 
 const Navbar = () => {
-  const user = {name:"Mohit"}
+  
+  const {user}= useSelector(state => state.auth)
+
+  const dispatch = useDispatch()
   const navigate = useNavigate()
 
   const logoutUser = ()=>{
     navigate("/")
+    dispatch(logoutUser())
   }
     return (
     <div className='shadow bg-white'>

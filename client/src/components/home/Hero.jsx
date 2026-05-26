@@ -1,7 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const Hero = () => {
+  const { user } = useSelector((state) => state.auth);
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   const companiesLogo = [
@@ -133,16 +135,21 @@ const Hero = () => {
 
           <div className="flex gap-2">
             <Link
-              to='/app?state=register'
+              to="/app?state=register"
               className="hidden md:block px-6 py-2 bg-green-500 hover:bg-green-700 active:scale-95 transition-all rounded-full text-white"
+              hidden={user}
             >
               Get started
             </Link>
             <Link
-               to='/app?state=login'
+              to="/app?state=login"
               className="hidden md:block px-6 py-2 border active:scale-95 hover:bg-slate-50 transition-all rounded-full text-slate-700 hover:text-slate-900"
+              hidden={user}
             >
               Login
+            </Link>
+            <Link to='/app' className=" hidden md:block px-8 py-2 bg-green-500 hover:bg-green-700 activate:scale-95 transition-all rounded-full text-white" hidden={!user}>
+            Dashboard
             </Link>
           </div>
 
@@ -253,15 +260,16 @@ const Hero = () => {
 
           {/* Headline + CTA */}
           <h1 className="text-5xl md:text-6xl font-semibold max-w-5xl text-center mt-4 md:leading-[70px]">
-          land your dream job with{" "}
+            land your dream job with{" "}
             <span className=" bg-gradient-to-r from-green-700 to-green-600 bg-clip-text text-transparent text-nowrap">
-             AI-powered{" "}
+              AI-powered{" "}
             </span>{" "}
             resumes.
           </h1>
 
           <p className="max-w-md text-center text-base my-7">
-            Create,edit and download profesional resumes with AI-powered assistance.
+            Create,edit and download profesional resumes with AI-powered
+            assistance.
           </p>
 
           {/* CTA Buttons */}
