@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import "dotenv/config"; // This handles your dotenv config automatically
+import "dotenv/config";
 import connectDB from "./configs/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import resumeRouter from "./routes/resumeRoutes.js";
@@ -9,39 +9,40 @@ import aiRouter from "./routes/aiRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Database connection
+// 1. Connect DB first
 await connectDB();
 
-app.use(express.json());
-
-// 1. Configured CORS properly for production
-const allowedOrigins = [
-    "http://localhost:5173", // Default Vite local port
-    "http://localhost:3000", // Default React local port
-    process.env.FRONTEND_URL  // Your future Vercel URL
-];
-
+// 2. CORS before everything
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.get('/', (req, res) => {
-    res.send("server is running");
+// 3. Parsers
+app.use(express.json());
+
+// 4. Routes
+app.get("/", (req, res) => {
+    res.send("Server is running");
 });
 
-app.use('/api/users', userRoutes);
-app.use('/api/resumes', resumeRouter);
-app.use('/api/ai', aiRouter);
+app.use("/api/users", userRoutes);
+app.use("/api/resumes", resumeRouter);
+app.use("/api/ai", aiRouter);
 
+// 5. 404 handler
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: `Route ${req.method} ${req.url} not found` });
+});
+
+// 6. Global error handler
+app.use((err, req, res, next) => {
+    console.error("Server error:", err.message);
+    res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
+});
+
+// 7. Start server
 app.listen(PORT, () => {
-    console.log(`server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
