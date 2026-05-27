@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import "dotenv/config"; 
+import "dotenv/config";
 import connectDB from "./configs/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import resumeRouter from "./routes/resumeRoutes.js";
@@ -9,31 +9,36 @@ import aiRouter from "./routes/aiRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// 1. Open CORS completely using the wildcard policy
+// Middleware
 app.use(cors({
-    origin: "*", 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
-
-// 2. Parsers
 app.use(express.json());
 
-// 3. Routes
-app.get('/', (req, res) => {
-    res.send("server is running");
+// Routes
+app.get("/", (req, res) => res.send("Server is running"));
+app.use("/api/users", userRoutes);
+app.use("/api/resumes", resumeRouter);
+app.use("/api/ai", aiRouter);
+
+// Global error handler (catches unhandled errors in route handlers)
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.message);
+  res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
 });
 
-app.use('/api/users', userRoutes);
-app.use('/api/resumes', resumeRouter);
-app.use('/api/ai', aiRouter);
+// Connect DB first, THEN start server
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log("Database connected!");
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  } catch (error) {
+    console.error("Failed to connect to database:", error.message);
+    process.exit(1); // crash loudly so Render shows the real error
+  }
+};
 
-// 4. Start server & database connection cleanly
-app.listen(PORT, async () => {
-    try {
-        await connectDB();
-        console.log(`Server running on port ${PORT} and DB connected cleanly!`);
-    } catch (error) {
-        console.error("Database connection failed during startup:", error);
-    }
-});
+startServer();
