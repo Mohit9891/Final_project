@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import "dotenv/config"; // This handles your dotenv config automatically
+import "dotenv/config"; 
 import connectDB from "./configs/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import resumeRouter from "./routes/resumeRoutes.js";
@@ -12,18 +12,20 @@ const PORT = process.env.PORT || 5000;
 // Database connection
 await connectDB();
 
-app.use(express.json());
-
-// 1. Configured CORS properly for production
+// 1. ALWAYS PLACE CORS AT THE VERY TOP OF YOUR MIDDLEWARE STACK
 const allowedOrigins = [
-    "http://localhost:5173", // Default Vite local port
-    "http://localhost:3000", // Default React local port
-    process.env.FRONTEND_URL  // Your future Vercel URL
+    "http://localhost:5173", 
+    "http://localhost:3000", 
+    "https://final-projectfrontend-indol.vercel.app" // Put your explicit Vercel domain here directly as a safety fallback
 ];
+
+// If process.env.FRONTEND_URL exists, push it into the array dynamically
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+}
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -34,6 +36,10 @@ app.use(cors({
     credentials: true
 }));
 
+// 2. PARSERS RUN AFTER CORS
+app.use(express.json());
+
+// 3. ROUTES RUN LAST
 app.get('/', (req, res) => {
     res.send("server is running");
 });
