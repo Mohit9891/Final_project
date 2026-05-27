@@ -9,37 +9,17 @@ import aiRouter from "./routes/aiRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Database connection
-await connectDB();
-
-// 1. ALWAYS PLACE CORS AT THE VERY TOP OF YOUR MIDDLEWARE STACK
-const allowedOrigins = [
-    "http://localhost:5173", 
-    "http://localhost:3000", 
-    "https://final-projectfrontend-indol.vercel.app" // Put your explicit Vercel domain here directly as a safety fallback
-];
-
-// If process.env.FRONTEND_URL exists, push it into the array dynamically
-if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
-}
-
+// 1. Open CORS completely using the wildcard policy
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true
+    origin: "*", 
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 2. PARSERS RUN AFTER CORS
+// 2. Parsers
 app.use(express.json());
 
-// 3. ROUTES RUN LAST
+// 3. Routes
 app.get('/', (req, res) => {
     res.send("server is running");
 });
@@ -48,6 +28,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/resumes', resumeRouter);
 app.use('/api/ai', aiRouter);
 
-app.listen(PORT, () => {
-    console.log(`server is running on port ${PORT}`);
+// 4. Start server & database connection cleanly
+app.listen(PORT, async () => {
+    try {
+        await connectDB();
+        console.log(`Server running on port ${PORT} and DB connected cleanly!`);
+    } catch (error) {
+        console.error("Database connection failed during startup:", error);
+    }
 });
