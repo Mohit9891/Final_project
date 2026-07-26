@@ -4,7 +4,7 @@ const connectDB = async() =>{
     try {
         
         mongoose.connection.once("connected", ()=>{
-            console.log("Database connected succesfully")
+            console.log("Database connected succesfully" , mongoose.connection.name)
         })
 
         let mongodbURI = process.env.MONGODB_URI;
