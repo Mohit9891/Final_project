@@ -1,7 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Briefcase, Plus, Sparkles, Trash2 } from "lucide-react";
+import api from "../configs/api";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
 
 const ExperienceForm = ({ data, onChange }) => {
+  const { token } = useSelector((state) => state.auth);
+  const [enhancingIndex, setEnhancingIndex] = useState(null);
   const addExperience = () => {
     const newExperience = {
       company: "",
@@ -23,6 +28,25 @@ const ExperienceForm = ({ data, onChange }) => {
     const updated = [...data];
     updated[index] = { ...updated[index], [field]: value };
     onChange(updated);
+  };
+
+  const handleAIEnhance = async (index) => {
+    const description = data[index]?.description;
+    if (!description) return toast.error("Write a job description first");
+    setEnhancingIndex(index);
+    try {
+      const { data: res } = await api.post(
+        "/api/ai/enhance-job-desc",
+        { userContent: description },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      updateExperience(index, "description", res.enhancedContent);
+      toast.success("Job description enhanced!");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+    } finally {
+      setEnhancingIndex(null);
+    }
   };
 
   return (
@@ -140,17 +164,20 @@ const ExperienceForm = ({ data, onChange }) => {
                     Job Description
                   </label>
                   <button
+                    type="button"
+                    onClick={() => handleAIEnhance(index)}
+                    disabled={enhancingIndex === index}
                     className=" flex items-center gap-1 px-2 py-1 text-xs
                    bg-purple-100 text-purple-700 rounded hover:bg-purple-200 
                    transition-colors disabled:opacity-50"
                   >
                     <Sparkles className="w-3 h-3" />
-                    Enhance with AI
+                    {enhancingIndex === index ? "Enhancing..." : "Enhance with AI"}
                   </button>
                 </div>
 
                 <textarea
-                value={experience.description || ""} onChange={()=> updateExperience(index, "description" , e.target.value)} rows={4}
+                value={experience.description || ""} onChange={(e)=> updateExperience(index, "description" , e.target.value)} rows={4}
                   className="w-full text-sm px-3 rounded-lg resize-none"
                   placeholder="Describe your key responsibilities and achievements..."
                 ></textarea>

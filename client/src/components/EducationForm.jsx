@@ -7,10 +7,8 @@ const EducationForm = ({ data, onChange }) => {
       institution: "",
       degree: "",
       field: "",
-      start_date: "",
-      end_date: "",
+      graduation_date: "",
       gpa: "",
-      is_current: false,
     };
     onChange([...data, newEducation]);
   };
@@ -120,41 +118,14 @@ const EducationForm = ({ data, onChange }) => {
 
                 <input
                   type="month"
-                  placeholder="Start Date"
+                  placeholder="Graduation Date"
                   value={education.graduation_date || ""}
                   onChange={(e) =>
                     updateEducation(index, "graduation_date", e.target.value)
                   }
                   className="px-3 py-2 text-sm border rounded-lg"
                 />
-
-                <input
-                  type="month"
-                  placeholder="End Date"
-                  value={education.end_date}
-                  onChange={(e) =>
-                    updateEducation(index, "end_date", e.target.value)
-                  }
-                  disabled={education.is_current}
-                  className="px-3 py-2 text-sm border rounded-lg disabled:bg-gray-100"
-                />
               </div>
-
-              {/* Currently Studying */}
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={education.is_current}
-                  onChange={(e) =>
-                    updateEducation(
-                      index,
-                      "is_current",
-                      e.target.checked
-                    )
-                  }
-                />
-                I currently study here
-              </label>
             </div>
           ))}
         </div>

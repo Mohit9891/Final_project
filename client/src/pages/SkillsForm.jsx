@@ -7,7 +7,7 @@ const SkillsForm = ({ data, onChange }) => {
 
     const addSkill= ()=>{
         if(newSkill.trim() && !data.includes(newSkill.trim())){
-            onchange([...data,newSkill.trim()])
+            onChange([...data,newSkill.trim()])
             setNewSkill("")
         }
     }
@@ -38,8 +38,8 @@ const SkillsForm = ({ data, onChange }) => {
              value={newSkill}
              onKeyDown={handleKeyPress} />
 
-             <button className='flex items-center gap-2 px-2 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-             transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+             <button type="button" onClick={addSkill} className='flex items-center gap-2 px-2 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+              transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
                 <Plus className='size-4'/>
              </button>
         </div>
@@ -53,7 +53,7 @@ const SkillsForm = ({ data, onChange }) => {
         text-blue-800 rounded-full text-sm"
       >
         {skill}
-        <button onchange={() => removeSkill(index)} className='ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors'>
+        <button onClick={() => removeSkill(index)} className='ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors'>
             <X className='w-3 h-3'/>
         </button>
       </span>

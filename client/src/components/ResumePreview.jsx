@@ -12,6 +12,7 @@ const ResumePreview = ({ data, template, accentColor, classes = "" }) => {
       case "minimal":
         return <MinimalTemplate data={data} accentColor={accentColor} />;
       case "minimalImage":
+      case "minimal-image":
         return <MinimalImageTemplate data={data} accentColor={accentColor} />;
 
       default:
@@ -29,7 +30,7 @@ const ResumePreview = ({ data, template, accentColor, classes = "" }) => {
       >
         {renderTemplate()}
       </div>
-      <style jsx>
+      <style>
         {`
           @page {
             size: letter;

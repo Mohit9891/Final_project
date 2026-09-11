@@ -1,7 +1,31 @@
 
 import fs from "fs";
+import mongoose from "mongoose";
 import imagekit from "../configs/imageKit.js";
 import Resume from "../models/Resume.js";
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const ALLOWED_UPDATE_FIELDS = [
+  "title",
+  "professional_summary",
+  "skills",
+  "personal_info",
+  "experience",
+  "projects",
+  "education",
+  "template",
+  "accentColor",
+  "public",
+];
+
+const sanitizeUpdate = (input = {}) => {
+  const out = {};
+  for (const key of ALLOWED_UPDATE_FIELDS) {
+    if (input[key] !== undefined) out[key] = input[key];
+  }
+  return out;
+};
 
 // CREATE RESUME
 export const createResume = async (req, res) => {
@@ -9,7 +33,10 @@ export const createResume = async (req, res) => {
     const userId = req.userId;
     const { title } = req.body;
 
-    const newResume = await Resume.create({ userId, title });
+    const cleanTitle =
+      typeof title === "string" && title.trim() ? title.trim().slice(0, 100) : "Untitled Resume";
+
+    const newResume = await Resume.create({ userId, title: cleanTitle });
 
     return res.status(201).json({
       message: "Resume created successfully",
@@ -26,6 +53,10 @@ export const deleteResume = async (req, res) => {
   try {
     const userId = req.userId;
     const { resumeId } = req.params;
+
+    if (!isValidId(resumeId)) {
+      return res.status(400).json({ message: "Invalid resume id" });
+    }
 
     const deletedResume = await Resume.findOneAndDelete({
       userId,
@@ -48,15 +79,17 @@ export const getResumeById = async (req, res) => {
     const userId = req.userId;
     const { resumeId } = req.params;
 
-    const resume = await Resume.findOne({ userId, _id: resumeId });
+    if (!isValidId(resumeId)) {
+      return res.status(400).json({ message: "Invalid resume id" });
+    }
+
+    const resume = await Resume.findOne({ userId, _id: resumeId })
+      .select("-__v -createdAt -updatedAt")
+      .lean();
 
     if (!resume) {
       return res.status(404).json({ message: "Resume not found" });
     }
-
-    resume.__v = undefined;
-    resume.createdAt = undefined;
-    resume.updatedAt = undefined;
 
     return res.status(200).json({ resume });
   } catch (error) {
@@ -68,6 +101,10 @@ export const getResumeById = async (req, res) => {
 export const getPublicResumeById = async (req, res) => {
   try {
     const { resumeId } = req.params;
+
+    if (!isValidId(resumeId)) {
+      return res.status(400).json({ message: "Invalid resume id" });
+    }
 
     const resume = await Resume.findOne({
       _id: resumeId,
@@ -92,36 +129,55 @@ export const updateResume = async (req, res) => {
     const { resumeId, resumeData, removeBackground } = req.body;
     const image = req.file;
 
-    let resumeDataCopy ;
-    if(typeof resumeData === 'string'){
-      resumeDatacopy = await JSON.parse(resumeData)
-    }else{
-      resumeDataCopy = structuredClone(resumeData)
+    if (!resumeId || !isValidId(resumeId)) {
+      if (image) fs.unlink(image.path, () => {});
+      return res.status(400).json({ message: "Valid resumeId is required" });
     }
 
+    let parsed;
+    if (typeof resumeData === "string") {
+      try {
+        parsed = JSON.parse(resumeData);
+      } catch {
+        if (image) fs.unlink(image.path, () => {});
+        return res.status(400).json({ message: "Invalid resumeData JSON" });
+      }
+    } else if (resumeData && typeof resumeData === "object") {
+      parsed = structuredClone(resumeData);
+    } else {
+      if (image) fs.unlink(image.path, () => {});
+      return res.status(400).json({ message: "resumeData is required" });
+    }
 
-   
+    const resumeDataCopy = sanitizeUpdate(parsed);
 
     // 🖼️ upload image if exists
-  if (image) {
+    if (image) {
+      try {
+        const wantBgRemove =
+          removeBackground === true ||
+          removeBackground === "yes" ||
+          removeBackground === "true";
+        const imageBufferData = fs.createReadStream(image.path);
+        const response = await imagekit.files.upload({
+          file: imageBufferData,
+          fileName: `resume-${userId}-${Date.now()}.png`,
+          folder: "user-resumes",
+          transformation: {
+            pre:
+              "w-300,h-300,fo-face,z-0.75" +
+              (wantBgRemove ? ",e-bgremove" : ""),
+          },
+        });
 
-    const imageBufferData = fs.createReadStream(image.path)
-  const response = await imagekit.files.upload({
-    file: imageBufferData, // ✅ FIX
-    fileName: `resume.png`,
-    folder: "user-resumes",
-    transformation: {
-      pre:
-        "w-300,h-300,fo-face,z-0.75" +
-        (removeBackground ? ",e-bgremove" : ""),
-    },
-  });
-
-  resumeDataCopy.personal_info = {
-    ...resumeDataCopy.personal_info,
-    image: response.url,
-  };
-}
+        resumeDataCopy.personal_info = {
+          ...(resumeDataCopy.personal_info || {}),
+          image: response.url,
+        };
+      } finally {
+        fs.unlink(image.path, () => {});
+      }
+    }
 
 
     const resume = await Resume.findOneAndUpdate(

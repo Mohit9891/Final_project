@@ -1,6 +1,7 @@
 import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {Link, useNavigate } from "react-router-dom"
+import { logout } from "../app/features/authSlice"
 
 const Navbar = () => {
   
@@ -10,8 +11,8 @@ const Navbar = () => {
   const navigate = useNavigate()
 
   const logoutUser = ()=>{
+    dispatch(logout())
     navigate("/")
-    dispatch(logoutUser())
   }
     return (
     <div className='shadow bg-white'>

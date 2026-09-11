@@ -41,8 +41,8 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    loadAllResumes();
-  }, []);
+    if (token) loadAllResumes();
+  }, [token]);
 
   /* ------------------ CREATE ------------------ */
   const createResume = async (e) => {
@@ -70,18 +70,13 @@ const Dashboard = () => {
     setIsLoading(true);
 
     try {
-      console.log("resume =", resume);
-      console.log("pdfToText =", pdfToText);
-
       if (!resume) {
         toast.error("No file selected");
         setIsLoading(false);
         return;
       }
 
-      const resumeText = await pdfToText.default(resume);
-
-      console.log("resumeText =", resumeText?.slice(0, 200));
+      const resumeText = await pdfToText(resume);
 
       const { data } = await api.post(
         "/api/ai/upload-resume",

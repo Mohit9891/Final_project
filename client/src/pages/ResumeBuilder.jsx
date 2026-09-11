@@ -90,7 +90,7 @@ const ResumeBuilder = () => {
       );
 
       const { data } = await api.put("/api/resumes/update", formData, {
-        headers: { Authorization: token },
+        headers: { Authorization: `Bearer ${token}` },
       });
       setResumeData({ ...resumeData, public: !resumeData.public });
       toast.success(data.message);
@@ -141,12 +141,13 @@ const ResumeBuilder = () => {
         formData.append("image", resumeData.personal_info.image);
 
       const { data } = await api.put("/api/resumes/update", formData, {
-        headers: { Authorization: token },
+        headers: { Authorization: `Bearer ${token}` },
       });
       setResumeData(data.resume);
-      toast.success(data.message);
+      return data;
     } catch (error) {
       console.log(error.message);
+      throw error;
     }
   };
 
@@ -306,7 +307,12 @@ const ResumeBuilder = () => {
 
               <button
                 onClick={() => {
-                  toast.promise(saveResume(), { loading: "saving..." });
+                  toast.promise(saveResume(), {
+                    loading: "Saving...",
+                    success: (data) => data?.message || "Saved successfully",
+                    error: (err) =>
+                      err?.response?.data?.message || err.message || "Save failed",
+                  });
                 }}
                 className="bg-gradient-to-br from-green-100 to-green-200
                      ring-green-300 text-green-600 ring hover:ring-green-400

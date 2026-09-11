@@ -1,6 +1,8 @@
 import Resume from "../models/Resume.js";
 import ai from "../configs/ai.js";
 
+const CHAT_MODEL = process.env.MODEL || "llama-3.3-70b-versatile";
+
 // controller for enhancing a resume professional summary
 // POST : /api/ai/enhance-pro-sum
 
@@ -8,12 +10,12 @@ export const enhanceProfessionalSummary = async (req, res) => {
   try {
     const { userContent } = req.body;
 
-    if (!userContent) {
+    if (!userContent || typeof userContent !== "string") {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const response = await ai.chat.completions.create({
-      model: process.env.MODEL, // ✅ fixed: was hardcoded "gemini-3-flash-preview"
+      model: CHAT_MODEL,
       messages: [
         {
           role: "system",
@@ -27,7 +29,10 @@ export const enhanceProfessionalSummary = async (req, res) => {
       ],
     });
 
-    const enhancedContent = response.choices[0].message.content;
+    const enhancedContent = response.choices?.[0]?.message?.content;
+    if (!enhancedContent) {
+      return res.status(502).json({ message: "AI returned no content" });
+    }
 
     return res.status(200).json({ enhancedContent });
   } catch (error) {
@@ -42,12 +47,12 @@ export const enhanceJobDescription = async (req, res) => {
   try {
     const { userContent } = req.body;
 
-    if (!userContent) {
+    if (!userContent || typeof userContent !== "string") {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const response = await ai.chat.completions.create({
-      model: process.env.MODEL,
+      model: CHAT_MODEL,
       messages: [
         {
           role: "system",
@@ -61,7 +66,10 @@ export const enhanceJobDescription = async (req, res) => {
       ],
     });
 
-    const enhancedContent = response.choices[0].message.content;
+    const enhancedContent = response.choices?.[0]?.message?.content;
+    if (!enhancedContent) {
+      return res.status(502).json({ message: "AI returned no content" });
+    }
 
     return res.status(200).json({ enhancedContent });
   } catch (error) {
@@ -72,7 +80,6 @@ export const enhanceJobDescription = async (req, res) => {
 // controller for uploading a resume to database
 // POST : /api/ai/upload-resume
 export const uploadResume = async (req, res) => {
-  console.log("🔥 NEW CODE RUNNING");
   try {
     const { resumeText, title } = req.body;
     const userId = req.userId;
@@ -84,7 +91,7 @@ export const uploadResume = async (req, res) => {
     const safeText = resumeText.slice(0, 1500);
 
     const response = await ai.chat.completions.create({
-      model: process.env.MODEL,
+      model: CHAT_MODEL,
       messages: [
         {
           role: "system",
@@ -96,12 +103,14 @@ CRITICAL: Use double quotes only. Return ONLY the JSON. No markdown, no backtick
       ],
     });
 
-    const raw = response.choices[0].message.content
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    const raw = response.choices?.[0]?.message?.content
+      ?.replace(/```json/g, "")
+      ?.replace(/```/g, "")
+      ?.trim();
 
-    console.log("AI RAW OUTPUT:", raw.slice(0, 300));
+    if (!raw) {
+      return res.status(502).json({ message: "AI returned no content" });
+    }
 
     let parsedData;
     try {
@@ -123,10 +132,6 @@ CRITICAL: Use double quotes only. Return ONLY the JSON. No markdown, no backtick
     const experienceToSave = safeArray(parsedData.experience);
     const educationToSave = safeArray(parsedData.education);
 
-    console.log("PROJECTS:", JSON.stringify(projectsToSave));
-    console.log("EXPERIENCE:", JSON.stringify(experienceToSave));
-    console.log("EDUCATION:", JSON.stringify(educationToSave));
-
     const newResume = await Resume.create({
       userId,
       title,
@@ -135,9 +140,9 @@ CRITICAL: Use double quotes only. Return ONLY the JSON. No markdown, no backtick
         ? parsedData.skills.filter((s) => typeof s === "string")
         : [],
       personal_info: parsedData.personal_info || {},
-      experience: safeArray(parsedData.experience),
-      projects: safeArray(parsedData.projects),
-      education: safeArray(parsedData.education),
+      experience: experienceToSave,
+      projects: projectsToSave,
+      education: educationToSave,
     });
 
     return res.json({ resumeId: newResume._id });
