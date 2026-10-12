@@ -105,3 +105,98 @@ export const getUserResumes = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+// GET /api/users/skills — aggregate all skills from user's resumes
+export const getUserSkills = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const resumes = await Resume.find({ userId }).select("skills experience projects education personal_info").lean();
+
+    const skillSet = new Set();
+    const roles = new Set();
+
+    for (const resume of resumes) {
+      // From skills array
+      if (Array.isArray(resume.skills)) {
+        resume.skills.forEach((s) => {
+          if (typeof s === "string" && s.trim()) skillSet.add(s.trim());
+        });
+      }
+
+      // From experience descriptions — extract tech keywords
+      if (Array.isArray(resume.experience)) {
+        resume.experience.forEach((exp) => {
+          if (exp.description) extractTechKeywords(exp.description, skillSet);
+          if (exp.position) roles.add(exp.position);
+        });
+      }
+
+      // From projects descriptions
+      if (Array.isArray(resume.projects)) {
+        resume.projects.forEach((proj) => {
+          if (proj.description) extractTechKeywords(proj.description, skillSet);
+          if (proj.type) skillSet.add(proj.type);
+        });
+      }
+
+      // From professional summary
+      if (resume.professional_summary) {
+        extractTechKeywords(resume.professional_summary, skillSet);
+      }
+
+      // From personal_info
+      if (resume.personal_info?.profession) {
+        roles.add(resume.personal_info.profession);
+      }
+    }
+
+    return res.status(200).json({
+      skills: [...skillSet],
+      roles: [...roles],
+      resumeCount: resumes.length,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const TECH_KEYWORDS = [
+  "JavaScript", "TypeScript", "React", "React.js", "Next.js", "NextJS",
+  "Vue", "Vue.js", "Angular", "Node.js", "NodeJS", "Express", "Express.js",
+  "Python", "Django", "Flask", "FastAPI",
+  "Java", "Spring", "Spring Boot",
+  "C++", "C#", ".NET", "Go", "Golang", "Rust", "Ruby", "Rails", "PHP", "Laravel",
+  "Swift", "Kotlin", "Flutter", "React Native",
+  "HTML", "HTML5", "CSS", "CSS3", "SASS", "SCSS", "Tailwind", "Tailwind CSS", "Bootstrap",
+  "SQL", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Elasticsearch", "DynamoDB", "Cassandra",
+  "AWS", "Azure", "GCP", "Google Cloud", "Docker", "Kubernetes", "K8s", "Terraform",
+  "CI/CD", "Jenkins", "GitHub Actions", "GitLab CI",
+  "Git", "GitHub", "GitLab", "Bitbucket",
+  "REST", "REST API", "REST APIs", "GraphQL", "gRPC", "WebSocket",
+  "Redux", "Zustand", "MobX", "Context API",
+  "Webpack", "Vite", "Babel", "ESLint",
+  "Jest", "Mocha", "Cypress", "Playwright", "Selenium",
+  "Linux", "Nginx", "Apache",
+  "Figma", "Adobe XD", "Sketch",
+  "TensorFlow", "PyTorch", "Machine Learning", "ML", "AI", "Artificial Intelligence",
+  "LangChain", "OpenAI", "LLM", "NLP",
+  "Kafka", "RabbitMQ", "ActiveMQ",
+  "Agile", "Scrum", "Jira", "Confluence",
+  "Pandas", "NumPy", "SciPy", "Matplotlib",
+  "S3", "Lambda", "EC2", "CloudFront", "DynamoDB",
+  "OAuth", "JWT", "Authentication",
+  "Microservices", "Serverless", "API Gateway",
+  "Postman", "Swagger", "OpenAPI",
+  "Data Structures", "Algorithms", "DSA", "System Design",
+];
+
+const extractTechKeywords = (text, skillSet) => {
+  if (!text) return;
+  const lower = text.toLowerCase();
+  for (const kw of TECH_KEYWORDS) {
+    if (lower.includes(kw.toLowerCase())) {
+      skillSet.add(kw);
+    }
+  }
+};

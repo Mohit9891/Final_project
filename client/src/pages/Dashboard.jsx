@@ -1,348 +1,227 @@
-import {
-  FilePenIcon,
-  PlusIcon,
-  TrashIcon,
-  UploadCloudIcon,
-  PencilIcon,
-  XIcon,
-  LoaderCircleIcon,
-} from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import api from "../configs/api.js";
-import toast from "react-hot-toast";
-import pdfToText from "react-pdftotext";
+import {
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  Briefcase,
+  Upload,
+  Clock,
+  FileText,
+  ArrowUpRight,
+} from "lucide-react";
+import MetricCard from "../components/ui/MetricCard";
+import ScoreCircle from "../components/ui/ScoreCircle";
+import ProgressBar from "../components/ui/ProgressBar";
+import SectionCard from "../components/ui/SectionCard";
+
+const subScores = [
+  { label: "ATS Compatibility", value: 88, color: "green" },
+  { label: "Content Quality", value: 81, color: "indigo" },
+  { label: "Skills", value: 79, color: "amber" },
+  { label: "Experience", value: 84, color: "blue" },
+  { label: "Formatting", value: 90, color: "green" },
+];
+
+const topJobs = [
+  {
+    company: "Google",
+    role: "Senior Frontend Engineer",
+    match: 94,
+    skills: ["React", "TypeScript", "GraphQL"],
+  },
+  {
+    company: "Stripe",
+    role: "Full Stack Developer",
+    match: 87,
+    skills: ["Node.js", "React", "PostgreSQL"],
+  },
+  {
+    company: "Notion",
+    role: "Software Engineer",
+    match: 82,
+    skills: ["React", "Python", "AWS"],
+  },
+];
+
+const recentActivity = [
+  {
+    icon: FileText,
+    text: "Resume analyzed — scored 88/100 on ATS",
+    time: "2 hours ago",
+  },
+  {
+    icon: AlertTriangle,
+    text: "12 missing keywords identified",
+    time: "2 hours ago",
+  },
+  {
+    icon: Briefcase,
+    text: "37 new job matches found",
+    time: "2 hours ago",
+  },
+];
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+};
 
 const Dashboard = () => {
-  const { user, token } = useSelector((state) => state.auth);
-  const colors = ["#9333ea", "#d99660", "#dc2626", "#0284c7", "#16a34a"];
-
-  const [allResumes, setAllResumes] = useState([]);
-  const [showCreateResume, setShowCreateResume] = useState(false);
-  const [showUploadResume, setShowUploadResume] = useState(false);
-  const [title, setTitle] = useState("");
-  const [resume, setResume] = useState(null);
-  const [editResumeId, setEditResumeId] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const navigate = useNavigate();
-
-  /* ------------------ LOAD ------------------ */
-  const loadAllResumes = async () => {
-    try {
-      const { data } = await api.get("/api/users/resumes", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAllResumes(data.resumes);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message);
-    }
-  };
-
-  useEffect(() => {
-    if (token) loadAllResumes();
-  }, [token]);
-
-  /* ------------------ CREATE ------------------ */
-  const createResume = async (e) => {
-    e.preventDefault();
-
-    try {
-      const { data } = await api.post(
-        "/api/resumes/create",
-        { title },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      setAllResumes((prev) => [...prev, data.resume]);
-      setTitle("");
-      setShowCreateResume(false);
-      navigate(`/app/builder/${data.resume._id}`);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message);
-    }
-  };
-
-  /* ------------------ UPLOAD ------------------ */
-  const uploadResume = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      if (!resume) {
-        toast.error("No file selected");
-        setIsLoading(false);
-        return;
-      }
-
-      const resumeText = await pdfToText(resume);
-
-      const { data } = await api.post(
-        "/api/ai/upload-resume",
-        { title, resumeText },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      setTitle("");
-      setResume(null);
-      setShowUploadResume(false);
-      navigate(`/app/builder/${data.resumeId}`);
-    } catch (error) {
-      console.error("UPLOAD ERROR =", error);
-      toast.error(error?.response?.data?.message || error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /* ------------------ EDIT ------------------ */
-  const editTitle = async (event) => {
-    event.preventDefault();
-
-    try {
-      const { data } = await api.put(
-        "/api/resumes/update",
-        {
-          resumeId: editResumeId,
-          resumeData: { title },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      setAllResumes((prev) =>
-        prev.map((resume) =>
-          resume._id === editResumeId
-            ? { ...resume, title, updatedAt: new Date().toISOString() }
-            : resume,
-        ),
-      );
-
-      setTitle("");
-      setEditResumeId("");
-      toast.success(data.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message);
-    }
-  };
-
-  /* ------------------ DELETE ------------------ */
-  const deleteResume = async (resumeId) => {
-    try {
-      if (!window.confirm("Are you sure you want to delete this resume?"))
-        return;
-
-      const { data } = await api.delete(`/api/resumes/delete/${resumeId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setAllResumes((prev) => prev.filter((resume) => resume._id !== resumeId));
-
-      toast.success(data.message);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message);
-    }
-  };
+  const { user } = useSelector((state) => state.auth);
 
   return (
-    <div>
-      <p className="text-2xl font-medium mb-6 bg-gradient-to-r from-slate-600 to-slate-700 bg-clip-text text-transparent hidden sm:block">
-        Welcome, {user?.name || "User"}
-      </p>
-
-      {/* CREATE / UPLOAD */}
-      <div className="flex gap-4">
-        <button
-          onClick={() => setShowCreateResume(true)}
-          className="w-full bg-white sm:max-w-36 h-48 flex flex-col items-center justify-center rounded-lg gap-2 text-slate-600 border border-dashed border-slate-300 hover:border-indigo-500 hover:shadow-lg transition"
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-surface-900">
+            {getGreeting()}, {user?.name || "there"} 👋
+          </h1>
+          <p className="text-surface-500 mt-1">
+            Here's how your resume is performing today.
+          </p>
+        </div>
+        <Link
+          to="/app/upload"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors shadow-sm self-start"
         >
-          <PlusIcon className="size-11 p-2.5 bg-gradient-to-br from-indigo-300 to-indigo-500 text-white rounded-full" />
-          <p>Create Resume</p>
-        </button>
-
-        <button
-          onClick={() => setShowUploadResume(true)}
-          className="w-full bg-white sm:max-w-36 h-48 flex flex-col items-center justify-center rounded-lg gap-2 text-slate-600 border border-dashed border-slate-300 hover:border-purple-500 hover:shadow-lg transition"
-        >
-          <UploadCloudIcon className="size-11 p-2.5 bg-gradient-to-br from-purple-300 to-purple-500 text-white rounded-full" />
-          <p>Upload Existing</p>
-        </button>
+          <Upload size={16} />
+          Upload New Resume
+        </Link>
       </div>
 
-      <hr className="border-slate-300 my-6 sm:w-[305px]" />
-
-      {/* RESUME CARDS */}
-      <div className="flex flex-wrap gap-4">
-        {allResumes.map((resume, index) => {
-          const baseColor = colors[index % colors.length];
-
-          return (
-            <button
-              key={resume._id}
-              onClick={() => navigate(`/app/builder/${resume._id}`)}
-              className="group relative w-full sm:max-w-36 h-48 flex flex-col items-center justify-center rounded-lg gap-2 border hover:shadow-lg transition"
-              style={{
-                background: `linear-gradient(135deg, ${baseColor}10, ${baseColor}40)`,
-                borderColor: baseColor + "40",
-              }}
-            >
-              <FilePenIcon style={{ color: baseColor }} />
-              <p className="text-sm text-center">{resume.title}</p>
-              <p
-                className="absolute bottom-2 text-[11px]"
-                style={{ color: baseColor + "90" }}
-              >
-                Updated on {new Date(resume.updatedAt).toLocaleDateString()}
-              </p>
-
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute top-1 right-1 hidden group-hover:flex"
-              >
-                <TrashIcon
-                  onClick={() => deleteResume(resume._id)}
-                  className="size-7 p-1.5 hover:bg-white/50 rounded"
-                />
-                <PencilIcon
-                  onClick={() => {
-                    setEditResumeId(resume._id);
-                    setTitle(resume.title);
-                  }}
-                  className="size-7 p-1.5 hover:bg-white/50 rounded"
-                />
-              </div>
-            </button>
-          );
-        })}
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          icon={TrendingUp}
+          value="88%"
+          label="ATS Score"
+          trend="+5% from last"
+          trendDirection="up"
+          color="green"
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          value="12"
+          label="Missing Keywords"
+          trend="Add to improve"
+          trendDirection="neutral"
+          color="amber"
+        />
+        <MetricCard
+          icon={CheckCircle}
+          value="24"
+          label="Matched Skills"
+          trend="Strong coverage"
+          trendDirection="neutral"
+          color="green"
+        />
+        <MetricCard
+          icon={Briefcase}
+          value="37"
+          label="Job Matches"
+          trend="Based on resume"
+          trendDirection="neutral"
+          color="blue"
+        />
       </div>
 
-      {/* CREATE MODAL */}
-      {showCreateResume && (
-        <form
-          onSubmit={createResume}
-          className="fixed inset-0 bg-black/70 z-10 flex items-center justify-center"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-lg p-6 w-full max-w-sm relative"
-          >
-            <h2 className="text-xl font-bold mb-4">Create Resume</h2>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border px-4 py-2 mb-4"
-              placeholder="Resume title"
-            />
-            <button className="w-full bg-green-600 text-white py-2 rounded">
-              Create
-            </button>
-            <XIcon
-              onClick={() => {
-                setShowCreateResume(false);
-                setTitle("");
-              }}
-              className="absolute top-4 right-4 cursor-pointer"
-            />
-          </div>
-        </form>
-      )}
-
-      {/* UPLOAD MODAL */}
-      {showUploadResume && (
-        <form
-          onSubmit={uploadResume}
-          className="fixed inset-0 bg-black/70 z-10 flex items-center justify-center"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-lg p-6 w-full max-w-sm relative"
-          >
-            <h2 className="text-xl font-bold mb-4">Upload Resume</h2>
-            {/* ✅ ADD THIS RIGHT AFTER THE h2 */}
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border px-4 py-2 mb-4"
-              placeholder="Resume title"
-              required
-            />
-
-            <div
-              onClick={() => document.getElementById("resumeUpload").click()}
-              className="border border-dashed p-6 text-center cursor-pointer"
-            >
-              {resume ? resume.name : "Upload PDF"}
+      {/* Resume Health + Job Matches */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left — Resume Health */}
+        <SectionCard className="lg:col-span-2" title="Resume Health">
+          <div className="flex flex-col sm:flex-row items-center gap-8">
+            <div className="shrink-0">
+              <ScoreCircle score={82} size={180} color="indigo" />
             </div>
 
-            <input
-              id="resumeUpload"
-              type="file"
-              accept=".pdf"
-              hidden
-              onChange={(e) => setResume(e.target.files[0])}
-            />
+            <div className="flex-1 w-full space-y-5">
+              <p className="text-sm text-surface-600">
+                <span className="font-semibold text-surface-900">Good</span> — your resume is competitive
+              </p>
 
-            <button
-              disabled={isLoading}
-              className="w-full bg-green-600 text-white py-2 rounded mt-4 disabled:opacity-50"
-            >
-              {isLoading && (
-                <LoaderCircleIcon className="animate-spin size-4 text-white" />
-              )}
-              {isLoading ? "Uploading..." : "Upload"}
-            </button>
-
-            <XIcon
-              onClick={() => {
-                setShowUploadResume(false);
-                setTitle("");
-                setResume(null);
-              }}
-              className="absolute top-4 right-4 cursor-pointer"
-            />
+              <div className="space-y-4">
+                {subScores.map((item) => (
+                  <ProgressBar
+                    key={item.label}
+                    value={item.value}
+                    label={item.label}
+                    color={item.color}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-        </form>
-      )}
+        </SectionCard>
 
-      {/* EDIT MODAL */}
-      {editResumeId && (
-        <form
-          onSubmit={editTitle}
-          className="fixed inset-0 bg-black/70 z-10 flex items-center justify-center"
+        {/* Right — Top Job Matches */}
+        <SectionCard
+          title="Top Job Matches"
+          action={
+            <span className="text-xs font-medium text-primary-600 cursor-pointer hover:underline">
+              View all
+            </span>
+          }
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-lg p-6 w-full max-w-sm relative"
-          >
-            <h2 className="text-xl font-bold mb-4">Edit Resume Title</h2>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border px-4 py-2 mb-4"
-            />
-            <button className="w-full bg-green-600 text-white py-2 rounded">
-              Update
-            </button>
-            <XIcon
-              onClick={() => {
-                setEditResumeId("");
-                setTitle("");
-              }}
-              className="absolute top-4 right-4 cursor-pointer"
-            />
+          <div className="space-y-4">
+            {topJobs.map((job, i) => (
+              <div
+                key={i}
+                className="p-4 rounded-xl border border-surface-100 hover:border-surface-200 hover:shadow-sm transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-surface-900 truncate">
+                      {job.role}
+                    </p>
+                    <p className="text-xs text-surface-500 mt-0.5">{job.company}</p>
+                  </div>
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success-50 text-success-600">
+                    {job.match}%
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {job.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-surface-100 text-surface-600"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </form>
-      )}
+        </SectionCard>
+      </div>
+
+      {/* Recent Activity */}
+      <SectionCard title="Recent Activity">
+        <div className="divide-y divide-surface-100">
+          {recentActivity.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div key={i} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-100 text-surface-500 shrink-0">
+                  <Icon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-surface-700">{item.text}</p>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-surface-400 shrink-0">
+                  <Clock size={12} />
+                  <span>{item.time}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </SectionCard>
     </div>
   );
 };

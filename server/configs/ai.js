@@ -1,8 +1,15 @@
 import OpenAI from "openai";
 
-const ai = new OpenAI({
-    apiKey: process.env.GROQ_API,
-    baseURL: process.env.AI_BASE_URL || "https://api.groq.com/openai/v1",
-});
+let _ai = null;
 
-export default ai;
+const getAI = () => {
+  if (!_ai) {
+    _ai = new OpenAI({
+      apiKey: process.env.GROQ_API,
+      baseURL: process.env.AI_BASE_URL || "https://api.groq.com/openai/v1",
+    });
+  }
+  return _ai;
+};
+
+export default { get instance() { return getAI(); } };

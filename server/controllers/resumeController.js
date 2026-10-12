@@ -1,7 +1,7 @@
 
 import fs from "fs";
 import mongoose from "mongoose";
-import imagekit from "../configs/imageKit.js";
+import imagekitConfig from "../configs/imageKit.js";
 import Resume from "../models/Resume.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -159,7 +159,7 @@ export const updateResume = async (req, res) => {
           removeBackground === "yes" ||
           removeBackground === "true";
         const imageBufferData = fs.createReadStream(image.path);
-        const response = await imagekit.files.upload({
+        const response = await imagekitConfig.instance.files.upload({
           file: imageBufferData,
           fileName: `resume-${userId}-${Date.now()}.png`,
           folder: "user-resumes",

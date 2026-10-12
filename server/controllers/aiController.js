@@ -1,7 +1,10 @@
 import Resume from "../models/Resume.js";
-import ai from "../configs/ai.js";
+import aiConfig from "../configs/ai.js";
 
-const CHAT_MODEL = process.env.MODEL || "llama-3.3-70b-versatile";
+const CHAT_MODEL = process.env.MODEL || "qwen/qwen3.8-27b";
+
+const stripThinkTags = (text) =>
+  text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
 // controller for enhancing a resume professional summary
 // POST : /api/ai/enhance-pro-sum
@@ -14,13 +17,14 @@ export const enhanceProfessionalSummary = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const response = await ai.chat.completions.create({
+    const response = await aiConfig.instance.chat.completions.create({
       model: CHAT_MODEL,
+      max_tokens: 256,
       messages: [
         {
           role: "system",
           content:
-            "You are an expert in resume writing . Your task is to enhance the professional summary of a resume. The summary should be 1-2 sentences also highlighting key skills, experience , and career objectives .Make it compelling and ATS-friendly. and only return text no options or anything else .",
+            "Enhance this resume professional summary in 1-2 sentences. Be compelling, ATS-friendly, highlight key skills. Return only the text.",
         },
         {
           role: "user",
@@ -29,7 +33,7 @@ export const enhanceProfessionalSummary = async (req, res) => {
       ],
     });
 
-    const enhancedContent = response.choices?.[0]?.message?.content;
+    const enhancedContent = stripThinkTags(response.choices?.[0]?.message?.content || "");
     if (!enhancedContent) {
       return res.status(502).json({ message: "AI returned no content" });
     }
@@ -51,13 +55,14 @@ export const enhanceJobDescription = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const response = await ai.chat.completions.create({
+    const response = await aiConfig.instance.chat.completions.create({
       model: CHAT_MODEL,
+      max_tokens: 256,
       messages: [
         {
           role: "system",
           content:
-            "You are an expert in resume writing . Your task is to enhance the job description of a resume. The job description should be only in 1-2 sentence also highlighting key responsibilities and achievemnts , Use action verbs and quatifiable results where possible. Make it ATS-friendly. and only return text no options or anything else ",
+            "Enhance this job description in 1-2 sentences. Use action verbs, quantify results. Be ATS-friendly. Return only the text.",
         },
         {
           role: "user",
@@ -66,7 +71,7 @@ export const enhanceJobDescription = async (req, res) => {
       ],
     });
 
-    const enhancedContent = response.choices?.[0]?.message?.content;
+    const enhancedContent = stripThinkTags(response.choices?.[0]?.message?.content || "");
     if (!enhancedContent) {
       return res.status(502).json({ message: "AI returned no content" });
     }
@@ -88,25 +93,26 @@ export const uploadResume = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const safeText = resumeText.slice(0, 1500);
+    const safeText = resumeText.slice(0, 1000);
 
-    const response = await ai.chat.completions.create({
+    const response = await aiConfig.instance.chat.completions.create({
       model: CHAT_MODEL,
+      max_tokens: 768,
       messages: [
         {
           role: "system",
-          content: `Extract resume data and return ONLY a valid JSON object with exactly this structure:
-{"professional_summary":"string","skills":["skill1"],"personal_info":{"full_name":"","profession":"","email":"","phone":"","location":"","linkedin":"","website":"","image":""},"experience":[{"company":"","position":"","start_date":"","end_date":"","description":"","is_current":false}],"projects":[{"name":"","type":"","description":""}],"education":[{"institution":"","degree":"","field":"","graduation_date":"","gpa":""}]}
-CRITICAL: Use double quotes only. Return ONLY the JSON. No markdown, no backticks, no explanation.`,
+          content: `Return ONLY valid JSON:
+{"professional_summary":"","skills":[],"personal_info":{"full_name":"","profession":"","email":"","phone":"","location":"","linkedin":"","website":"","image":""},"experience":[{"company":"","position":"","start_date":"","end_date":"","description":"","is_current":false}],"projects":[{"name":"","type":"","description":""}],"education":[{"institution":"","degree":"","field":"","graduation_date":"","gpa":""}]}
+No markdown, no backticks, no explanation. Only JSON.`,
         },
         { role: "user", content: safeText },
       ],
     });
 
-    const raw = response.choices?.[0]?.message?.content
-      ?.replace(/```json/g, "")
-      ?.replace(/```/g, "")
-      ?.trim();
+    const raw = stripThinkTags(response.choices?.[0]?.message?.content || "")
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
     if (!raw) {
       return res.status(502).json({ message: "AI returned no content" });

@@ -29,6 +29,7 @@ import SkillsForm from "./SkillsForm";
 import api from "../configs/api";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
+import { generateResumePDF } from "../utils/pdfExport";
 
 const ResumeBuilder = () => {
   const { resumeId } = useParams();
@@ -63,8 +64,8 @@ const ResumeBuilder = () => {
   };
 
   useEffect(() => {
-    if (resumeId) loadExistingResume();
-  }, [resumeId]);
+    if (resumeId && token) loadExistingResume();
+  }, [resumeId, token]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [removeBackground, setRemoveBackground] = useState(false);
@@ -119,8 +120,24 @@ const ResumeBuilder = () => {
     }
   };
 
-  const downloadResume = () => {
-    window.print();
+  const downloadResume = async () => {
+    try {
+      toast.loading("Generating PDF...", { id: "pdf-download" });
+      const pdfBytes = await generateResumePDF(resumeData, resumeData.template, resumeData.accentColor);
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${resumeData.title || "resume"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("PDF downloaded!", { id: "pdf-download" });
+    } catch (error) {
+      toast.error("Failed to generate PDF", { id: "pdf-download" });
+      console.error("PDF generation error:", error);
+    }
   };
 
   const saveResume = async () => {
