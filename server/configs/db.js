@@ -13,10 +13,17 @@ const connectDB = async() =>{
         if(!mongodbURI){
             throw new Error("Mongodb uri enviroment variable not set");
         }
-        if(mongodbURI.endsWith('/')){
-            mongodbURI = mongodbURI.slice(0,-1)
-        }
-        await mongoose.connect(`${mongodbURI}/${projectName}`)
+
+        // Insert the database name into the URI path BEFORE the query string.
+        // Naively appending "/name" to a URI that has "?w=majority" produces
+        // "?w=majority/name", which MongoDB rejects as an unknown write concern.
+        const [base, query] = mongodbURI.split("?");
+        const trimmed = base.replace(/\/+$/, "");
+        const withoutScheme = trimmed.replace(/^mongodb(\+srv)?:\/\//, "");
+        const hasDbName = withoutScheme.includes("/");
+        const withDb = hasDbName ? trimmed : `${trimmed}/${projectName}`;
+
+        await mongoose.connect(query ? `${withDb}?${query}` : withDb)
     } catch (error) {
         console.error("error connecting to mongodb" , error);
         throw error;
