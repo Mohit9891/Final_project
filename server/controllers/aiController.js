@@ -2,9 +2,40 @@ import Resume from "../models/Resume.js";
 import aiConfig from "../configs/ai.js";
 
 const CHAT_MODEL = process.env.MODEL || "qwen/qwen3.8-27b";
+const FALLBACK_MODELS = [
+  CHAT_MODEL,
+  "qwen/qwen3.8-27b",
+  "llama-3.1-8b-instant",
+].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
 const stripThinkTags = (text) =>
   text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+const isModelUnavailable = (error) => {
+  const msg = String(error?.message || "");
+  return (
+    error?.status === 404 ||
+    /does not exist|do not have access|model_not_found|invalid model|decommissioned|deprecated/i.test(
+      msg,
+    )
+  );
+};
+
+// Calls the configured model, falling back to known-good ones if Groq has
+// retired or renamed it (e.g. MODEL=llama-3.3-70b-versatile no longer exists).
+const chatCompletion = async (payload) => {
+  let lastError;
+  for (const model of FALLBACK_MODELS) {
+    try {
+      return await aiConfig.instance.chat.completions.create({ ...payload, model });
+    } catch (error) {
+      lastError = error;
+      if (!isModelUnavailable(error)) throw error;
+      console.warn(`Model "${model}" unavailable, trying next: ${error.message}`);
+    }
+  }
+  throw lastError;
+};
 
 // controller for enhancing a resume professional summary
 // POST : /api/ai/enhance-pro-sum
@@ -17,8 +48,7 @@ export const enhanceProfessionalSummary = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const response = await aiConfig.instance.chat.completions.create({
-      model: CHAT_MODEL,
+    const response = await chatCompletion({
       max_tokens: 256,
       messages: [
         {
@@ -55,8 +85,7 @@ export const enhanceJobDescription = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const response = await aiConfig.instance.chat.completions.create({
-      model: CHAT_MODEL,
+    const response = await chatCompletion({
       max_tokens: 256,
       messages: [
         {
@@ -95,8 +124,7 @@ export const uploadResume = async (req, res) => {
 
     const safeText = resumeText.slice(0, 1000);
 
-    const response = await aiConfig.instance.chat.completions.create({
-      model: CHAT_MODEL,
+    const response = await chatCompletion({
       max_tokens: 768,
       messages: [
         {
