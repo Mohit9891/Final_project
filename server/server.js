@@ -33,6 +33,11 @@ app.use("/api/ai", aiRouter);
 app.use("/api/jobs", jobRouter);
 app.use("/api/applications", applicationRouter);
 
+// 404 handler for unknown routes
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.method} ${req.url} not found` });
+});
+
 // Global error handler (catches unhandled errors in route handlers)
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err.message);
